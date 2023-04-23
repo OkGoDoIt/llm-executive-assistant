@@ -217,7 +217,7 @@ def sendgrid_parser():
             message = Mail(
                 from_email='assistant@ask.okgodoit.com',
                 to_emails=[To(owner_user), To(recipient)],
-                subject='Calendar Invitation: ' + eventTitle)
+                subject='Re: ' + subject)
             contentObj = Content("text/calendar; method=REQUEST", ical)
             print(contentObj)
             message.content = contentObj
