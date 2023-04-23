@@ -87,20 +87,16 @@ def sendgrid_parser():
         user="assistantuser",
         password=os.environ.get('PSQL_PASSWORD'))
 
-    if (owner_user == ''):
-        cur = conn.cursor()
-        cur.execute("SELECT email_address, thread_history, primaryuserid, users.email as ownerEmail, users.ical_url as ownerIcal, users.full_name as ownerFullName, users.other_info_for_prompt as otherPromptInfo FROM public.externalusers join users on primaryuserid = users.user_id where externalusers.email_address=%s", (recipient,))
-        result = cur.fetchone()
-        if result and result[0]:
-            thread_history = result[1]
-            owner_user_id = result[2]
-            owner_user = result[3]
-            ical_url = result[4]
-            fullOwnerName = result[5]
-            otherOwnerInfo = result[6]
-        else:
-            # no associated main user and no exisiting thread, disreagard for now
-            print('No associated main user and no exisiting thread, disreagard for now')
+    cur = conn.cursor()
+    cur.execute("SELECT email_address, thread_history, primaryuserid, users.email as ownerEmail, users.ical_url as ownerIcal, users.full_name as ownerFullName, users.other_info_for_prompt as otherPromptInfo FROM public.externalusers join users on primaryuserid = users.user_id where externalusers.email_address=%s", (recipient,))
+    result = cur.fetchone()
+    if result and result[0]:
+        thread_history = result[1]
+        owner_user_id = result[2]
+        owner_user = result[3]
+        ical_url = result[4]
+        fullOwnerName = result[5]
+        otherOwnerInfo = result[6]
     else:
         cur = conn.cursor()
         cur.execute(
@@ -112,6 +108,13 @@ def sendgrid_parser():
             ical_url = result[2]
             fullOwnerName = result[3]
             otherOwnerInfo = result[4]
+            
+            #TODO: half finished
+            cur.execute("INSERT INTO public.externalusers (email_address, thread_history, primaryuserid) VALUES (%s, %s, %s);", (recipient, thread_history, owner_user_id))
+            
+        else:
+            # no associated main user and no exisiting thread, disreagard for now
+            print('No associated main user and no exisiting thread, disreagard for now')
 
     calendar_summary = ''
 
@@ -123,9 +126,9 @@ def sendgrid_parser():
             datetime.datetime.now().astimezone(ptz), datetime.datetime.now().astimezone(ptz) + datetime.timedelta(days=60))
         for component in events:
             if component.name == "VEVENT":
-              if type(component.decoded("DTSTART")) is datetime.datetime:
-                calendar_summary += 'Event title: "%s", Event timing: From %s to %s, Event location: %s\n' % (
-                    component.get("SUMMARY"), component.decoded("DTSTART").astimezone(ptz).strftime("%w %B %d, %Y at %I:%M%p"), component.decoded("DTSTART").astimezone(ptz).strftime("%w %B %d, %Y at %I:%M%p"), component.get("LOCATION"))
+                if type(component.decoded("DTSTART")) is datetime.datetime:
+                    calendar_summary += 'Event title: "%s", Event timing: From %s to %s, Event location: %s\n' % (
+                        component.get("SUMMARY"), component.decoded("DTSTART").astimezone(ptz).strftime("%w %B %d, %Y at %I:%M%p"), component.decoded("DTSTART").astimezone(ptz).strftime("%w %B %d, %Y at %I:%M%p"), component.get("LOCATION"))
 
     if (calendar_summary == ''):
         calendar_summary = 'The calendar is completely empty and available'
