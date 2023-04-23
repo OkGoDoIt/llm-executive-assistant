@@ -11,15 +11,53 @@ import icalendar
 import recurring_ical_events
 import urllib.request
 
-ptz = tz.gettz("America/Los_Angeles")
+ptz = tz.gettz("America/Los_Angeles") #The ptz variable defines the time zone to be used for calendar events.
 app = Flask(__name__)
 
-users = ["okgodoit@gmail.com", "roger@betechie.com", "roger@pincombe.com"]
-email_regex = r'(?:"?([^"]*)"?\s)?(?:<?(.+@[^>]+)>?)'
+
+def process_ics_file(ics_file_content):
+    cal = Calendar.from_ical(ics_file_content)
+
+    # Find events
+    events = []
+    for component in cal.walk():
+        if component.name == "VEVENT":
+            events.append(component)
+
+    # Calculate availability
+    now = datetime.datetime.now(pytz.timezone("America/Los_Angeles"))
+    end_of_day = now.replace(hour=23, minute=59, second=59)
+    availability = []
+
+    for i in range(7):  # Check availability for the next 7 days
+        available = True
+        current_day_start = now.replace(hour=0, minute=0, second=0) + datetime.timedelta(days=i)
+        current_day_end = end_of_day + datetime.timedelta(days=i)
+
+        for event in events:
+            event_start = event.get("DTSTART").dt.replace(tzinfo=pytz.UTC).astimezone(ptz)
+            event_end = event.get("DTEND").dt.replace(tzinfo=pytz.UTC).astimezone(ptz)
+
+            if (event_start >= current_day_start and event_start <= current_day_end) or (
+                    event_end >= current_day_start and event_end <= current_day_end):
+                available = False
+                break
+
+        if available:
+            availability.append(current_day_start.strftime("%A, %B %d"))
+
+    return availability
+
+# ... (rest of the code remains unchanged)
+
 
 
 @app.route('/process-inbound-email', methods=['POST'])
-def sendgrid_parser():
+
+# main processing function that parses the email and generates a response.
+# It uses various methods to extract relevant information from the email, such as the email address of the sender, the recipient, the subject, and the body of the email. 
+# It then uses this information to create a response email.
+def sendgrid_parser(): 
     # Consume the entire email
     envelope = simplejson.loads(request.form.get('envelope'))
 
